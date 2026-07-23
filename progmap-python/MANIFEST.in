@@ -1,6 +1,5 @@
 include README.md
 include LICENSE
-include README_EN.md
 include TEST_REPORT.md
 include requirements-linux-cpu.txt
 include requirements-linux-runtime.txt

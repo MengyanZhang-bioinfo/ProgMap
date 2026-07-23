@@ -71,7 +71,7 @@ python -m pip install --no-deps .
 progmap --help
 ```
 
-See the [Linux/server documentation](progmap-python/README_EN.md) or the [Chinese documentation](progmap-python/README.md) for input conventions, leakage controls, Docker, Slurm, and one-command examples.
+See the [Linux/server documentation](progmap-python/README.md) for input conventions, cross-validation, Docker, Slurm, and command examples.
 
 ## 🛠️ Prerequisites & Installation
 

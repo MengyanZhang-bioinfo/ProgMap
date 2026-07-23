@@ -14,7 +14,7 @@ COPY requirements-linux-runtime.txt requirements-linux-cpu.txt ./
 RUN python -m pip install --upgrade pip setuptools wheel \
     && python -m pip install -r requirements-linux-cpu.txt
 
-COPY pyproject.toml README.md README_EN.md LICENSE MANIFEST.in ./
+COPY pyproject.toml README.md LICENSE MANIFEST.in ./
 COPY src ./src
 RUN python -m pip install --no-deps . \
     && useradd --create-home --uid 10001 progmap \
@@ -24,4 +24,3 @@ RUN python -m pip install --no-deps . \
 USER progmap
 ENTRYPOINT ["progmap"]
 CMD ["--help"]
-
