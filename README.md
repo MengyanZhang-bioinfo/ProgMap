@@ -4,6 +4,7 @@
 ![Language](https://img.shields.io/badge/Language-R-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.9--3.11-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
+[![Linux CI](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml)
 ## Overview
 
 This repository contains the source code and scripts used for the data analysis and visualization presented in the manuscript **"[ProgMap defines clinically actionable cancer progression trajectories]"**. The study integrates single-cell RNA sequencing (scRNA-seq), spatial transcriptomics, and bulk RNA-seq data to elucidate the molecular drivers of tumor progression and immune microenvironment remodeling.

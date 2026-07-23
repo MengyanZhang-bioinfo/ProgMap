@@ -50,7 +50,10 @@ The resulting `run_config.json` correctly recorded Python and package versions, 
 - Git Bash `bash -n` accepted `examples/run_all.sh` and `server/slurm_run.sh`.
 - The Ubuntu 22.04 workflow at `.github/workflows/linux-ci.yml` performs the same installation, test, CLI smoke-test, and build sequence after publication to GitHub.
 
+## Native Ubuntu verification
+
+GitHub Actions run [30023364052](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/runs/30023364052) completed successfully on Ubuntu 22.04 for commit `782d128d4e88b91219bf1c56e215d75ac25ad860`. All workflow steps passed, including checkout, Python setup, installation of the pinned Linux environment, the seven automated tests, the installed-command/input smoke test, and wheel/source-distribution construction.
+
 ## Test boundary
 
-The local host used for the above verification was not a Linux kernel and did not provide Docker, WSL, or a GPU. Therefore the local result verifies the Linux-pinned dependency set, platform-neutral package, wheel, CLI, shell syntax, and complete analysis path, but it is not labeled as a native-Linux execution. Native Ubuntu status must be taken from the GitHub Actions run generated after the commit is pushed. GPU execution likewise requires a compatible NVIDIA runtime and is checked at startup with `--device gpu`.
-
+CPU execution is verified locally and on native Ubuntu 22.04. The available hosts did not provide an NVIDIA GPU or Docker daemon, so GPU/container execution was not falsely labeled as tested. GPU startup performs an explicit TensorFlow device check with `--device gpu` and requires a compatible NVIDIA driver and container runtime.
