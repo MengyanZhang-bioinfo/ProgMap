@@ -1,0 +1,45 @@
+name: Linux CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "progmap-python/**"
+      - ".github/workflows/linux-ci.yml"
+  pull_request:
+    paths:
+      - "progmap-python/**"
+      - ".github/workflows/linux-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: progmap-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: progmap-python/requirements-linux-cpu.txt
+      - name: Install reference Linux environment
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-linux-cpu.txt
+          python -m pip install --no-deps -e .
+      - name: Unit and end-to-end tests
+        env:
+          CUDA_VISIBLE_DEVICES: "-1"
+          TF_CPP_MIN_LOG_LEVEL: "2"
+        run: python -m pytest
+      - name: Command-line and input smoke test
+        run: |
+          progmap --help
+          python examples/create_synthetic_data.py --output /tmp/progmap/PANCANCER
+          progmap --data-root /tmp/progmap/PANCANCER --output /tmp/progmap/input_check --dry-run --device cpu
+      - name: Build source and wheel distributions
+        run: python -m build
+

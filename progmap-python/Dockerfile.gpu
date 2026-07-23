@@ -1,0 +1,23 @@
+FROM tensorflow/tensorflow:2.14.0-gpu
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TF_CPP_MIN_LOG_LEVEL=2
+
+WORKDIR /opt/progmap
+COPY requirements-linux-runtime.txt ./
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install -r requirements-linux-runtime.txt
+
+COPY pyproject.toml README.md README_EN.md LICENSE MANIFEST.in ./
+COPY src ./src
+RUN python -m pip install --no-deps . \
+    && useradd --create-home --uid 10001 progmap \
+    && mkdir -p /data /results \
+    && chown -R progmap:progmap /data /results
+
+USER progmap
+ENTRYPOINT ["progmap"]
+CMD ["--help"]
+

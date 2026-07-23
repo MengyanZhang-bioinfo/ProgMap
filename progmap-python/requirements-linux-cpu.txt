@@ -1,0 +1,6 @@
+# Reference CPU environment for Ubuntu Linux, Python 3.9-3.11.
+-r requirements-linux-runtime.txt
+tensorflow==2.14.0
+pytest==8.3.5
+build==1.2.2.post1
+

@@ -2,6 +2,7 @@
 # Analysis Code for: [ProgMap defines clinically actionable cancer progression trajectories]
 
 ![Language](https://img.shields.io/badge/Language-R-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.9--3.11-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ## Overview
 
@@ -52,7 +53,24 @@ Scripts for evaluating the tumor microenvironment (TME) and clinical relevance.
 ### 5. Plots
 | Script Name | Description | Key Methods/Packages |
 | :--- | :--- | :--- |
-| **`UpSet_plot.R`** |The intersection and specificity of the CPSig gene in pan-cancer | `UpSetR` package | 
+| **`UpSet_plot.R`** |The intersection and specificity of the CPSig gene in pan-cancer | `UpSetR` package |
+
+### 6. ProgMap Python tool for Linux servers
+
+The reproducible command-line implementation of fold-specific MECor construction, the fixed Dense(2048)-Dense(128) skip model, three-class cross-validation, integrated-gradient attribution, and optional feature tests is available in [`progmap-python/`](progmap-python/).
+
+The server release includes pinned Python/TensorFlow dependencies, CPU and GPU container definitions, POSIX shell and Slurm examples, automated tests, and an Ubuntu 22.04 GitHub Actions workflow. Quick start:
+
+```bash
+cd progmap-python
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-linux-cpu.txt
+python -m pip install --no-deps .
+progmap --help
+```
+
+See the [Linux/server documentation](progmap-python/README_EN.md) or the [Chinese documentation](progmap-python/README.md) for input conventions, leakage controls, Docker, Slurm, and one-command examples.
 
 ## 🛠️ Prerequisites & Installation
 

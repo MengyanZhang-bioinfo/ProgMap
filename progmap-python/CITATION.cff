@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use ProgMap, please cite the associated manuscript and this software release."
+title: "ProgMap Python Tool"
+type: software
+version: 0.2.0
+date-released: 2026-07-23
+authors:
+  - name: "ProgMap authors"
+repository-code: "https://github.com/MengyanZhang-bioinfo/ProgMap"
+license: MIT
+

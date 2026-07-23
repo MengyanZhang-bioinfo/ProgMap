@@ -1,0 +1,14 @@
+include README.md
+include LICENSE
+include README_EN.md
+include TEST_REPORT.md
+include requirements-linux-cpu.txt
+include requirements-linux-runtime.txt
+include environment-linux.yml
+include Dockerfile
+include Dockerfile.gpu
+include CHANGELOG.md
+include CITATION.cff
+recursive-include examples *.sh *.py
+recursive-include server *.sh
+recursive-include tests *.py

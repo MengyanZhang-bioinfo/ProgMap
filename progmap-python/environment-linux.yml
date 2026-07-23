@@ -1,0 +1,20 @@
+name: progmap-linux
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip=24.3
+  - pip:
+      - tensorflow==2.14.0
+      - numpy==1.26.4
+      - pandas==2.2.3
+      - scipy==1.13.1
+      - scikit-learn==1.5.2
+      - statsmodels==0.14.4
+      - joblib==1.4.2
+      - protobuf==4.25.9
+      - ml-dtypes==0.2.0
+      - pytest==8.3.5
+      - build==1.2.2.post1
+      - -e .
+
