@@ -7,4 +7,4 @@ statsmodels==0.14.4
 joblib==1.4.2
 protobuf==4.25.9
 ml-dtypes==0.2.0
-
+tqdm==4.67.1

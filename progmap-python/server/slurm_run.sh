@@ -20,7 +20,9 @@ exec progmap \
   --output "$2" \
   --cancers all \
   --test ttest \
-  --top-n all \
+  --top-n significant \
+  --folds 3 \
+  --inner-folds 3 \
+  --correlation-method pearson \
   --device auto \
   --threads "${SLURM_CPUS_PER_TASK:-8}"
-

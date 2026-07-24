@@ -1,22 +1,10 @@
 # ProgMap
 
-Command-line software for fold-specific MECor feature construction, three-class stage classification, and progression-associated feature ranking from paired gene-expression and DNA-methylation matrices.
-
-## Requirements
-
-- Linux x86_64
-- Python 3.9-3.11
-- TensorFlow/Keras 2.14.0
-- NumPy 1.26.4
-- pandas 2.2.3
-- SciPy 1.13.1
-- scikit-learn 1.5.2
-- statsmodels 0.14.4
-- joblib 1.4.2
+ProgMap is a command-line package for three-class molecular-stage modeling and progression-feature attribution from paired gene-expression and DNA-methylation matrices.
 
 ## Installation
 
-### `venv`
+### Linux virtual environment
 
 ```bash
 git clone https://github.com/MengyanZhang-bioinfo/ProgMap.git
@@ -26,7 +14,7 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-linux-cpu.txt
 python -m pip install --no-deps .
-progmap --help
+progmap --version
 ```
 
 ### Conda
@@ -34,21 +22,20 @@ progmap --help
 ```bash
 conda env create -f environment-linux.yml
 conda activate progmap-linux
-python -m pip install --no-deps .
-progmap --help
+progmap --version
 ```
 
-## Input files
+The reference environment uses Python 3.11, TensorFlow/Keras 2.14.0, NumPy 1.26.4, pandas 2.2.3, SciPy 1.13.1, scikit-learn 1.5.2, statsmodels 0.14.4, joblib 1.4.2, and tqdm 4.67.1.
 
-`--data-root` must contain one directory per cancer type. Each cancer directory must contain six gene-by-sample CSV matrices. The first column contains gene identifiers, and the header contains sample identifiers.
+## Input data
 
-| Sample group | Expression | Methylation |
+`--data-root` contains one directory per cancer type. Each cancer directory contains six gene-by-sample CSV matrices. The first column contains gene identifiers, and the remaining columns are samples.
+
+| Class | Expression | DNA methylation |
 |---|---|---|
 | Normal | `en.csv` | `mn.csv` |
-| Stage I | `exp1.csv` or `e1.csv` | `me1.csv` or `m1.csv` |
-| Stage II/III | `exp2.csv` or `e2.csv` | `me2.csv` or `m2.csv` |
-
-Example:
+| Stage I | `e1.csv` or `exp1.csv` | `m1.csv` or `me1.csv` |
+| Stage II/III | `e2.csv` or `exp2.csv` | `m2.csv` or `me2.csv` |
 
 ```text
 /data/PANCANCER/
@@ -59,15 +46,23 @@ Example:
 │   ├── mn.csv
 │   ├── m1.csv
 │   └── m2.csv
-└── LUAD/
+└── another_cancer/
     └── ...
 ```
 
-Filenames are case-sensitive. A directory named `GEO` is excluded.
+Filenames are case-sensitive. A directory named `GEO` is ignored. Expression and methylation matrices are aligned by common gene and sample identifiers before analysis.
 
-## Usage
+## One-command analysis
 
-Validate the input files without training:
+Run every complete cancer directory with the manuscript defaults:
+
+```bash
+progmap --data-root /data/PANCANCER --output /results/progmap
+```
+
+The command reads the raw expression and methylation CSV files, performs fold-specific preprocessing, trains the models, calculates held-out attributions, tests the features, and writes all results under `--output`. Progress bars are enabled by default; use `--no-progress` or `--quiet` to disable them.
+
+Validate input files without training:
 
 ```bash
 progmap \
@@ -77,140 +72,181 @@ progmap \
   --device cpu
 ```
 
-Analyze all cancer directories with the default t-test and retain all ranked genes:
+## Default analysis settings
+
+| Setting | Default |
+|---|---|
+| Classes | normal, stage I, stage II/III |
+| Outer cross-validation | stratified 3-fold |
+| Epoch selection | nested stratified 3-fold within each outer-training fold |
+| Maximum epochs | 1,000 |
+| Early-stopping monitor | class-balanced validation loss |
+| Warm-up / patience / minimum change | 20 / 50 / `1e-4` |
+| Selected outer-fold epoch | median best epoch across the inner folds |
+| Model | Dense(2048)-Dropout-Dense(128)-Dropout with an input skip connection to the softmax output |
+| Optimizer | Adam with exponentially decayed learning rate |
+| Initial learning rate / decay | `1e-3` / 0.9 every 10,000 steps |
+| Batch size / dropout | 16 / 0.1 |
+| Training class weights | 0.25, 0.50, 0.25 |
+| Random seed | 42 |
+| Missing values | 10-nearest-neighbor imputation |
+| Expression and methylation scaling | independently scaled to [0, 1] within each training partition |
+| MECor correlation | per-gene Pearson correlation within each training partition |
+| Attribution | enhanced integrated gradients, 64 steps and 3 baselines |
+| Feature test | one-sided Welch t-test |
+| Multiple-testing correction | Benjamini-Hochberg FDR at 0.01 |
+| Selected output | all significant unique genes |
+
+For each outer fold, all imputation, min-max scaling, expression-methylation correlation, MECor construction, and epoch selection exclude the outer test fold. Inner cross-validation selects an epoch count. A new model is then trained from scratch on the complete outer-training fold for that fixed number of epochs, and the outer test fold is evaluated once.
+
+## Optional parameters
+
+All requested training and feature-selection settings are available from the command line:
 
 ```bash
 progmap \
   --data-root /data/PANCANCER \
-  --output /results/progmap \
-  --cancers all \
-  --test ttest \
-  --top-n all \
-  --device auto \
-  --threads 8
-```
-
-Select the top 100 genes with the Wilcoxon rank-sum test:
-
-```bash
-progmap \
-  --data-root /data/PANCANCER \
-  --output /results/progmap_wilcoxon \
-  --cancers all \
+  --output /results/custom_run \
+  --cancers BRCA,COAD \
+  --folds 5 \
+  --inner-folds 3 \
+  --epochs 600 \
+  --learning-rate 0.0005 \
+  --early-stopping nested \
+  --early-stopping-monitor val_loss \
+  --warmup-epochs 20 \
+  --patience 40 \
+  --min-delta 0.0001 \
+  --seed 2026 \
+  --correlation-method spearman \
   --test wilcoxon \
-  --top-n 100 \
-  --device auto \
-  --threads 8
+  --correction fdr_bh \
+  --alpha 0.01 \
+  --top-n 100
 ```
 
-Use a permutation test and 1,000 feature-effect bootstrap iterations:
+Important choices include:
+
+- `--early-stopping nested`: nested cross-validation followed by full outer-training-fold refitting.
+- `--early-stopping holdout`: one stratified internal holdout controlled by `--inner-validation-fraction`.
+- `--early-stopping off`: no epoch selection; every outer model uses `--epochs`.
+- `--early-stopping-monitor val_loss` or `val_auc`.
+- `--correlation-method pearson` or `spearman`.
+- `--test ttest`, `wilcoxon`, or `permutation`.
+- `--top-n significant`: output every gene passing the adjusted-P threshold.
+- `--top-n N`: output the top `N` unique ranked genes.
+- `--top-n all`: output every ranked gene.
+- `--bootstrap-iterations N`: add feature-effect bootstrap confidence intervals; `0` disables them.
+- `--no-save-models` and `--no-save-attributions`: reduce output size.
+
+Run `progmap --help` for every available option.
+
+## BRCA-format example
+
+The repository includes a small synthetic `BRCA_DEMO` dataset with the same six-file layout as a real BRCA analysis. It contains no patient data.
+
+Run a short end-to-end example:
 
 ```bash
 progmap \
-  --data-root /data/PANCANCER \
-  --output /results/progmap_permutation \
-  --cancers BRCA,LUAD \
-  --test permutation \
-  --permutations 1000 \
-  --bootstrap-iterations 1000 \
-  --top-n 100 \
-  --device auto
+  --data-root examples/data/PANCANCER \
+  --cancers BRCA_DEMO \
+  --output demo_results \
+  --folds 2 \
+  --inner-folds 2 \
+  --epochs 2 \
+  --patience 0 \
+  --warmup-epochs 0 \
+  --ig-steps 4 \
+  --ig-baselines 1 \
+  --top-n 5 \
+  --device cpu
 ```
 
-Run `progmap --help` for all command-line options.
+To create another synthetic dataset:
 
-## Statistical options
-
-- `--test ttest`: one-sided Welch's two-sample t-test.
-- `--test wilcoxon`: one-sided Wilcoxon rank-sum/Mann-Whitney test.
-- `--test permutation`: one-sided permutation test of the mean difference.
-- `--correction`: multiple-testing correction (`bonferroni`, `sidak`, `holm-sidak`, `holm`, `simes-hochberg`, `hommel`, `fdr_bh`, `fdr_by`, `fdr_tsbh`, or `fdr_tsbky`).
-- `--alpha`: adjusted significance threshold.
-- `--top-n all`: retain all ranked genes.
-- `--top-n N`: retain the top `N` unique genes.
-- `--bootstrap-iterations N`: calculate bootstrap confidence intervals for feature effects; `0` disables this option.
-
-## Cross-validation and preprocessing
-
-The outer cross-validation loop is stratified. Within each outer fold, the software fits imputation, expression min-max scaling, methylation min-max scaling, per-gene Pearson correlations, MECor construction, and the neural network using only the training portion of that fold. Early stopping uses an internal split of the outer-training data. The held-out outer-fold samples are transformed with training-fold parameters and are used only for out-of-fold evaluation and attribution.
-
-The neural network has fixed hidden layers of 2,048 and 128 units with a skip connection to the three-class output layer.
+```bash
+python examples/create_synthetic_data.py \
+  --output /tmp/PANCANCER \
+  --cancer BRCA_DEMO \
+  --genes 12 \
+  --samples-per-class 9 \
+  --seed 7
+```
 
 ## Output files
 
-The output root contains `run_config.json` and `run_summary.json`. Each cancer-specific directory contains:
+```text
+OUTPUT/
+├── run_config.json
+├── run_summary.json
+└── BRCA/
+    ├── data_summary.json
+    ├── cross_validated_predictions.csv
+    ├── fold_metrics.csv
+    ├── pooled_out_of_fold_metrics.json
+    ├── epoch_selection_all_folds.csv
+    ├── features_by_class_all.csv
+    ├── features_ranked_genes.csv
+    ├── features_selected.csv
+    ├── progression_genes.csv
+    ├── attributions_class_0.npz
+    ├── attributions_class_1.npz
+    ├── attributions_class_2.npz
+    └── fold_1/
+        ├── model.keras
+        ├── preprocessor.joblib
+        ├── training_fold_correlations.csv
+        ├── training_history.csv
+        ├── epoch_selection.csv
+        ├── sample_roles.csv
+        └── inner_fold_1/
+            ├── training_fold_correlations.csv
+            ├── training_history.csv
+            └── sample_roles.csv
+```
 
-- `data_summary.json`
-- `cross_validated_predictions.csv`
-- `fold_metrics.csv`
-- `features_by_class_all.csv`
-- `features_ranked_genes.csv`
-- `features_selected.csv`
-- `summary.json`
-- one `fold_N` directory per outer fold
-
-Each `fold_N` directory contains the fitted preprocessor, training-fold correlation values, sample roles, training history, and the saved model unless `--no-save-models` is specified.
+`progression_genes.csv` and `features_selected.csv` contain the selected genes and include the best-associated class, class name, target and background median absolute attribution, raw P value, adjusted P value, attribution effect, significance flag, test, and correction method. `features_by_class_all.csv` retains class-specific statistics for every input gene. A separate `.keras` model is saved for every outer fold.
 
 ## Server execution
-
-Run in the background:
 
 ```bash
 nohup progmap \
   --data-root /data/PANCANCER \
   --output /results/progmap \
-  --cancers all \
-  --test ttest \
-  --top-n all \
   --device auto \
   --threads 8 \
   > progmap.log 2>&1 &
 ```
 
-Run the supplied shell wrapper:
+Shell wrapper:
 
 ```bash
 bash examples/run_all.sh /data/PANCANCER /results/progmap
 ```
 
-Submit the supplied Slurm script:
+Slurm:
 
 ```bash
 sbatch server/slurm_run.sh /data/PANCANCER /results/progmap
 ```
 
-`--device gpu` stops with an error if TensorFlow cannot detect a GPU. `--device auto` uses an available GPU and otherwise runs on CPU.
+`--device gpu` stops if TensorFlow cannot detect a GPU. `--device auto` uses an available GPU and otherwise runs on CPU.
 
 ## Docker
 
-CPU image:
-
 ```bash
-docker build -t progmap:0.2.0 .
+docker build -t progmap:0.3.0 .
 docker run --rm \
   -v /absolute/path/PANCANCER:/data/PANCANCER:ro \
   -v /absolute/path/results:/results \
-  progmap:0.2.0 \
+  progmap:0.3.0 \
   --data-root /data/PANCANCER \
   --output /results/run1 \
-  --device cpu \
-  --threads 8
+  --device cpu
 ```
 
-GPU image:
-
-```bash
-docker build -f Dockerfile.gpu -t progmap:0.2.0-gpu .
-docker run --rm --gpus all \
-  -v /absolute/path/PANCANCER:/data/PANCANCER:ro \
-  -v /absolute/path/results:/results \
-  progmap:0.2.0-gpu \
-  --data-root /data/PANCANCER \
-  --output /results/run1 \
-  --device gpu
-```
-
-GPU execution requires a compatible NVIDIA driver and NVIDIA Container Toolkit.
+For an NVIDIA host, build `Dockerfile.gpu` and run the image with `--gpus all` and `--device gpu`.
 
 ## Tests
 

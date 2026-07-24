@@ -1,8 +1,8 @@
-# ProgMap 0.2.0 server-release test report
+# ProgMap 0.3.0 test report
 
-Date: 2026-07-23
+Date: 2026-07-25
 
-## Reference dependency set
+## Reference environment
 
 - Python 3.11.6
 - TensorFlow/Keras 2.14.0
@@ -12,48 +12,49 @@ Date: 2026-07-23
 - scikit-learn 1.5.2
 - statsmodels 0.14.4
 - joblib 1.4.2
+- tqdm 4.67.1
 - protobuf 4.25.9
 - ml-dtypes 0.2.0
 
-The pinned dependencies in `requirements-linux-cpu.txt` installed successfully in a new Python 3.11 virtual environment, and `pip check` reported no broken requirements.
+The dependency versions are pinned in the Linux requirements and Conda environment files.
 
 ## Automated tests
-
-Command:
 
 ```bash
 python -m pytest
 ```
 
-Result: **7 passed**.
+Result: **9 passed**.
 
-Coverage includes input aliases and expression/methylation pairing, exclusion of the GEO directory, training-only imputation/scaling/correlation estimation, the fixed Dense(2048)-Dense(128)-skip architecture, enhanced integrated gradients, t-test/Wilcoxon/permutation feature ranking, and an end-to-end TensorFlow training pipeline.
+The tests cover input aliases and modality alignment, exclusion of the `GEO` directory, training-partition-only imputation/scaling/correlation, Pearson and Spearman correlations, command-line defaults and overrides, the Dense(2048)-Dense(128) skip architecture, enhanced integrated gradients, t-test/Wilcoxon/permutation feature ranking, and an end-to-end nested-cross-validation pipeline.
 
-## Installed-command smoke test
+## Installed-command tests
 
-The built `progmap-0.2.0-py3-none-any.whl` was force-installed instead of the editable source tree. The installed console command reported `progmap 0.2.0` from `site-packages`.
+A synthetic BRCA-format dataset containing 27 paired samples and 12 genes was analyzed with the installed `progmap` command.
 
-A separate synthetic dataset containing 27 paired samples and 12 genes was generated. The installed command completed:
+The nested test used two outer folds, two inner folds, two maximum epochs, fold-specific Pearson MECor features, t-tests, saved raw attributions, and saved outer-fold models. The result contained:
 
-- input-only validation;
-- two outer folds with one training epoch per fold;
-- training-fold-only MECor preprocessing;
-- held-out predictions for all 27 samples;
-- Wilcoxon feature testing; and
-- selection of the requested top five genes.
+- out-of-fold predictions for all 27 samples;
+- one saved `.keras` model per outer fold;
+- four inner-fold epoch-selection histories;
+- fold-specific preprocessors and correlations;
+- attribution arrays for all three output classes; and
+- selected-gene CSV files containing attribution, raw P value, adjusted P value, effect, and significance columns.
 
-The resulting `run_config.json` correctly recorded Python and package versions, requested CPU execution, two CPU threads, zero visible GPUs, and effective CPU execution.
+A second installed-command test used a custom seed, learning rate, fixed-epoch training, Spearman correlation, Wilcoxon testing, disabled raw-attribution output, and `--top-n 7`. All requested values were recorded in `run_config.json`, and exactly seven genes were written to `progression_genes.csv`.
 
-## Packaging and shell checks
+## Packaging and Linux checks
 
-- `python -m build` produced `progmap-0.2.0-py3-none-any.whl` and `progmap-0.2.0.tar.gz`.
-- Git Bash `bash -n` accepted `examples/run_all.sh` and `server/slurm_run.sh`.
-- The Ubuntu 22.04 workflow at `.github/workflows/linux-ci.yml` performs the same installation, test, CLI smoke-test, and build sequence after publication to GitHub.
+- `python -m compileall` completed without syntax errors.
+- `git diff --check` reported no whitespace errors.
+- `python -m build` produced `progmap-0.3.0-py3-none-any.whl` and `progmap-0.3.0.tar.gz`.
+- The source distribution includes the synthetic BRCA-format six-file example.
+- The Ubuntu 22.04 GitHub Actions workflow installs the pinned environment, runs all tests, executes the installed command, and builds both distributions.
 
-## Native Ubuntu verification
+## BRCA 841-gene reference
 
-GitHub Actions run [30023364052](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/runs/30023364052) completed successfully on Ubuntu 22.04 for commit `782d128d4e88b91219bf1c56e215d75ac25ad860`. All workflow steps passed, including checkout, Python setup, installation of the pinned Linux environment, the seven automated tests, the installed-command/input smoke test, and wheel/source-distribution construction.
+`Supplementary_Table.xlsx`, Table S2, contains 841 BRCA CPSig rows and 841 unique BRCA gene identifiers. The six real BRCA expression/methylation matrices were not present in the available `PANCANCER` directory, so the 841-gene result has not been represented as a newly reproduced model output in this report. The package does not treat a different count as a seed-only effect: data content, fold assignment, epoch-selection design, preprocessing, correlation method, attribution settings, statistical test, and multiple-testing correction can all change the selected set.
 
 ## Test boundary
 
-CPU execution is verified locally and on native Ubuntu 22.04. The available hosts did not provide an NVIDIA GPU or Docker daemon, so GPU/container execution was not falsely labeled as tested. GPU startup performs an explicit TensorFlow device check with `--device gpu` and requires a compatible NVIDIA driver and container runtime.
+Local CPU execution is verified. GPU execution requires a compatible Linux NVIDIA/TensorFlow environment and is guarded by an explicit `--device gpu` availability check.

@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import random
 from typing import Any
 
 import numpy as np
+
+
+EARLY_STOPPING_STRATEGIES = ("nested", "holdout", "off")
+EARLY_STOPPING_MONITORS = ("val_loss", "val_auc")
+
+
+@dataclass(frozen=True)
+class FitResult:
+    history: dict[str, list[float]]
+    best_epoch: int
+    stopped_epoch: int
+    best_monitor_value: float | None
 
 
 def require_tensorflow():
@@ -74,6 +87,62 @@ def set_global_seed(seed: int, deterministic: bool = True) -> None:
             pass
 
 
+def balanced_sample_weights(labels: np.ndarray) -> np.ndarray:
+    """Give every represented class equal total weight."""
+    labels = np.asarray(labels, dtype=np.int64)
+    counts = np.bincount(labels, minlength=3)
+    represented = counts > 0
+    if not represented.all():
+        raise ValueError("Balanced validation loss requires all three classes")
+    weights = len(labels) / (represented.sum() * counts.astype(np.float64))
+    return weights[labels].astype(np.float32)
+
+
+def _monitor_summary(
+    history: dict[str, list[float]],
+    monitor: str,
+    warmup_epochs: int,
+) -> tuple[int, float | None]:
+    values = np.asarray(history.get(monitor, []), dtype=float)
+    if not len(values):
+        return len(next(iter(history.values()), [])), None
+    start = min(max(int(warmup_epochs), 0), max(len(values) - 1, 0))
+    eligible = values[start:]
+    finite = np.isfinite(eligible)
+    if not finite.any():
+        return len(values), None
+    if monitor == "val_loss":
+        local_index = int(np.nanargmin(np.where(finite, eligible, np.nan)))
+    else:
+        local_index = int(np.nanargmax(np.where(finite, eligible, np.nan)))
+    index = start + local_index
+    return index + 1, float(values[index])
+
+
+def _epoch_progress_callback(description: str, epochs: int):
+    tf = require_tensorflow()
+    from tqdm.auto import tqdm
+
+    bar = tqdm(total=epochs, desc=description, unit="epoch", leave=False, dynamic_ncols=True)
+
+    class EpochProgress(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs=None):
+            logs = logs or {}
+            bar.update(1)
+            shown = {
+                key: f"{float(logs[key]):.4g}"
+                for key in ("loss", "val_loss", "val_auc")
+                if key in logs
+            }
+            if shown:
+                bar.set_postfix(shown, refresh=False)
+
+        def on_train_end(self, logs=None):
+            bar.close()
+
+    return EpochProgress()
+
+
 def build_skip_model(
     n_features: int,
     dropout: float = 0.1,
@@ -120,6 +189,7 @@ def build_skip_model(
             keras.metrics.CategoricalAccuracy(name="accuracy"),
             keras.metrics.AUC(name="auc", multi_label=True, num_labels=3),
         ],
+        weighted_metrics=[],
     )
     return model
 
@@ -132,34 +202,96 @@ def fit_model(
     y_validation: np.ndarray,
     *,
     epochs: int = 1000,
-    patience: int = 200,
+    patience: int = 50,
     batch_size: int = 16,
     class_weight: dict[int, float] | None = None,
+    monitor: str = "val_loss",
+    min_delta: float = 1e-4,
+    warmup_epochs: int = 20,
+    balance_validation_loss: bool = True,
+    progress_description: str | None = None,
     verbose: int = 1,
-) -> dict[str, list[float]]:
+) -> FitResult:
     tf = require_tensorflow()
+    if monitor not in EARLY_STOPPING_MONITORS:
+        raise ValueError(f"monitor must be one of {EARLY_STOPPING_MONITORS}")
     y_train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes=3)
     y_validation_one_hot = tf.keras.utils.to_categorical(y_validation, num_classes=3)
     callbacks: list[Any] = []
+    if progress_description:
+        callbacks.append(_epoch_progress_callback(progress_description, epochs))
     if patience > 0:
         callbacks.append(
             tf.keras.callbacks.EarlyStopping(
-                monitor="val_auc",
-                mode="max",
+                monitor=monitor,
+                mode="min" if monitor == "val_loss" else "max",
                 patience=patience,
+                min_delta=min_delta,
                 restore_best_weights=True,
-                verbose=verbose,
+                start_from_epoch=warmup_epochs,
+                verbose=0 if progress_description else verbose,
             )
         )
+    validation_data: tuple[np.ndarray, np.ndarray] | tuple[np.ndarray, np.ndarray, np.ndarray]
+    if balance_validation_loss:
+        validation_data = (
+            x_validation,
+            y_validation_one_hot,
+            balanced_sample_weights(y_validation),
+        )
+    else:
+        validation_data = (x_validation, y_validation_one_hot)
     history = model.fit(
         x_train,
         y_train_one_hot,
-        validation_data=(x_validation, y_validation_one_hot),
+        validation_data=validation_data,
         epochs=epochs,
         batch_size=batch_size,
         callbacks=callbacks,
         class_weight=class_weight,
         shuffle=True,
-        verbose=verbose,
+        verbose=0 if progress_description else verbose,
     )
-    return {key: [float(value) for value in values] for key, values in history.history.items()}
+    serializable = {
+        key: [float(value) for value in values]
+        for key, values in history.history.items()
+    }
+    best_epoch, best_value = _monitor_summary(serializable, monitor, warmup_epochs)
+    return FitResult(
+        history=serializable,
+        best_epoch=best_epoch,
+        stopped_epoch=len(next(iter(serializable.values()), [])),
+        best_monitor_value=best_value,
+    )
+
+
+def fit_fixed_epochs(
+    model,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    *,
+    epochs: int,
+    batch_size: int = 16,
+    class_weight: dict[int, float] | None = None,
+    progress_description: str | None = None,
+    verbose: int = 1,
+) -> dict[str, list[float]]:
+    tf = require_tensorflow()
+    y_train_one_hot = tf.keras.utils.to_categorical(y_train, num_classes=3)
+    callbacks: list[Any] = []
+    if progress_description:
+        callbacks.append(_epoch_progress_callback(progress_description, epochs))
+    history = model.fit(
+        x_train,
+        y_train_one_hot,
+        epochs=epochs,
+        batch_size=batch_size,
+        callbacks=callbacks,
+        class_weight=class_weight,
+        shuffle=True,
+        verbose=0 if progress_description else verbose,
+    )
+    return {
+        key: [float(value) for value in values]
+        for key, values in history.history.items()
+    }

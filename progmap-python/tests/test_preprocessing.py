@@ -1,6 +1,6 @@
 import numpy as np
 
-from progmap.preprocessing import FoldPreprocessor, pearson_per_gene
+from progmap.preprocessing import FoldPreprocessor, pearson_per_gene, spearman_per_gene
 
 
 def test_preprocessing_is_fit_only_on_training_data(tmp_path):
@@ -29,3 +29,20 @@ def test_preprocessing_is_fit_only_on_training_data(tmp_path):
     processor.save(path)
     loaded = FoldPreprocessor.load(path)
     np.testing.assert_allclose(loaded.correlations, correlations_before)
+
+
+def test_spearman_correlation_and_configurable_preprocessor():
+    expression = np.asarray(
+        [[1, 4], [2, 1], [3, 3], [4, 2]], dtype=np.float32
+    )
+    methylation = np.asarray(
+        [[10, 1], [20, 4], [30, 3], [40, 2]], dtype=np.float32
+    )
+    expected = np.asarray([1.0, -0.8], dtype=np.float32)
+    np.testing.assert_allclose(
+        spearman_per_gene(expression, methylation), expected, atol=1e-6
+    )
+    processor = FoldPreprocessor(
+        imputation="median", correlation_method="spearman"
+    ).fit(expression, methylation, np.asarray(["A", "B"]))
+    np.testing.assert_allclose(processor.correlations, expected, atol=1e-6)

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+from tqdm.auto import tqdm
 
 
 TESTS = ("ttest", "wilcoxon", "permutation")
@@ -53,6 +54,9 @@ def _permutation(
     background: np.ndarray,
     iterations: int,
     rng: np.random.Generator,
+    *,
+    progress: bool = False,
+    description: str | None = None,
 ) -> np.ndarray:
     if iterations < 1:
         raise ValueError("Permutation testing requires at least one iteration")
@@ -60,7 +64,16 @@ def _permutation(
     n_target = len(target)
     observed = target.mean(axis=0) - background.mean(axis=0)
     exceedances = np.zeros(target.shape[1], dtype=np.int64)
-    for _ in range(iterations):
+    iterator = tqdm(
+        range(iterations),
+        total=iterations,
+        desc=description or "Permutation test",
+        unit="permutation",
+        leave=False,
+        disable=not progress,
+        dynamic_ncols=True,
+    )
+    for _ in iterator:
         order = rng.permutation(len(pooled))
         permuted_target = pooled[order[:n_target]]
         permuted_background = pooled[order[n_target:]]
@@ -76,12 +89,24 @@ def _bootstrap_intervals(
     rng: np.random.Generator,
     confidence: float = 0.95,
     chunk_size: int = 512,
+    progress: bool = False,
+    description: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     n_features = target.shape[1]
     low = np.empty(n_features, dtype=np.float32)
     high = np.empty(n_features, dtype=np.float32)
     alpha = (1.0 - confidence) / 2.0
-    for start in range(0, n_features, chunk_size):
+    starts = range(0, n_features, chunk_size)
+    iterator = tqdm(
+        starts,
+        total=int(np.ceil(n_features / chunk_size)),
+        desc=description or "Feature bootstrap",
+        unit="chunk",
+        leave=False,
+        disable=not progress,
+        dynamic_ncols=True,
+    )
+    for start in iterator:
         stop = min(start + chunk_size, n_features)
         differences = np.empty((iterations, stop - start), dtype=np.float32)
         for iteration in range(iterations):
@@ -108,6 +133,8 @@ def rank_features(
     permutations: int = 1000,
     bootstrap_iterations: int = 0,
     seed: int = 42,
+    progress: bool = False,
+    progress_description: str | None = None,
 ) -> pd.DataFrame:
     if test not in TESTS:
         raise ValueError(f"Unknown test {test!r}; choose one of {TESTS}")
@@ -127,7 +154,18 @@ def rank_features(
     elif test == "wilcoxon":
         pvalue = _wilcoxon_rank_sum(target, background)
     else:
-        pvalue = _permutation(target, background, permutations, rng)
+        pvalue = _permutation(
+            target,
+            background,
+            permutations,
+            rng,
+            progress=progress,
+            description=(
+                f"{progress_description} permutation"
+                if progress_description
+                else None
+            ),
+        )
     pvalue = np.where(np.isfinite(pvalue), pvalue, 1.0)
     adjusted = multipletests(pvalue, alpha=alpha, method=correction)[1]
     target_median = np.median(target, axis=0)
@@ -148,7 +186,16 @@ def rank_features(
     )
     if bootstrap_iterations > 0:
         low, high = _bootstrap_intervals(
-            target, background, bootstrap_iterations, rng
+            target,
+            background,
+            bootstrap_iterations,
+            rng,
+            progress=progress,
+            description=(
+                f"{progress_description} bootstrap"
+                if progress_description
+                else None
+            ),
         )
         result["effect_ci_low"] = low
         result["effect_ci_high"] = high
@@ -167,6 +214,8 @@ def collapse_gene_ranking(class_results: pd.DataFrame) -> pd.DataFrame:
     best = best.rename(
         columns={
             "target_class": "best_class",
+            "class_name": "best_class_name",
+            "pvalue": "best_pvalue",
             "pvalue_adjusted": "best_adjusted_pvalue",
             "effect": "best_effect",
             "significant": "significant_in_best_class",
@@ -175,15 +224,20 @@ def collapse_gene_ranking(class_results: pd.DataFrame) -> pd.DataFrame:
     columns = [
         "gene",
         "best_class",
+        "best_class_name",
+        "median_abs_attribution_target",
+        "median_abs_attribution_background",
+        "best_pvalue",
         "best_adjusted_pvalue",
         "best_effect",
         "significant_in_best_class",
         "test",
         "correction",
     ]
+    if "effect_ci_low" in best.columns:
+        columns.extend(["effect_ci_low", "effect_ci_high"])
     return best[columns].sort_values(
         ["best_adjusted_pvalue", "best_effect", "gene"],
         ascending=[True, False, True],
         kind="mergesort",
     ).reset_index(drop=True)
-

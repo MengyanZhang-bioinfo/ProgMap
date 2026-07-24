@@ -9,5 +9,7 @@ include Dockerfile.gpu
 include CHANGELOG.md
 include CITATION.cff
 recursive-include examples *.sh *.py
+recursive-include examples *.csv
+recursive-include examples *.md
 recursive-include server *.sh
 recursive-include tests *.py

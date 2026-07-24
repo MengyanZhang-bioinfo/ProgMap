@@ -5,8 +5,12 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+from scipy.stats import rankdata
 from sklearn.impute import KNNImputer
 from sklearn.preprocessing import MinMaxScaler
+
+
+CORRELATION_METHODS = ("pearson", "spearman")
 
 
 def _nan_medians(values: np.ndarray) -> np.ndarray:
@@ -42,12 +46,34 @@ def pearson_per_gene(expression: np.ndarray, methylation: np.ndarray) -> np.ndar
     return np.clip(correlation, -1.0, 1.0).astype(np.float32)
 
 
+def spearman_per_gene(expression: np.ndarray, methylation: np.ndarray) -> np.ndarray:
+    """Calculate per-gene Spearman correlations across samples."""
+    if expression.shape != methylation.shape:
+        raise ValueError("Expression and methylation matrices must have identical shapes")
+    expression_ranks = rankdata(expression, axis=0, method="average").astype(np.float32)
+    methylation_ranks = rankdata(methylation, axis=0, method="average").astype(np.float32)
+    return pearson_per_gene(expression_ranks, methylation_ranks)
+
+
+def correlation_per_gene(
+    expression: np.ndarray,
+    methylation: np.ndarray,
+    method: str,
+) -> np.ndarray:
+    if method == "pearson":
+        return pearson_per_gene(expression, methylation)
+    if method == "spearman":
+        return spearman_per_gene(expression, methylation)
+    raise ValueError(f"Unknown correlation method {method!r}; choose from {CORRELATION_METHODS}")
+
+
 @dataclass
 class FoldPreprocessor:
     """Training-fold-only imputation, scaling, correlation, and MECor construction."""
 
     imputation: str = "knn"
     knn_neighbors: int = 10
+    correlation_method: str = "pearson"
     expression_medians: np.ndarray | None = None
     methylation_medians: np.ndarray | None = None
     expression_imputer: KNNImputer | None = None
@@ -71,6 +97,10 @@ class FoldPreprocessor:
             raise ValueError("imputation must be 'knn' or 'median'")
         if self.knn_neighbors < 1:
             raise ValueError("knn_neighbors must be positive")
+        if self.correlation_method not in CORRELATION_METHODS:
+            raise ValueError(
+                f"correlation_method must be one of {CORRELATION_METHODS}"
+            )
         self.genes = np.asarray(genes, dtype=object)
         self.expression_medians = _nan_medians(expression_train)
         self.methylation_medians = _nan_medians(methylation_train)
@@ -95,7 +125,11 @@ class FoldPreprocessor:
         self.methylation_scaler = MinMaxScaler(feature_range=(0.0, 1.0), clip=True)
         expression_scaled = self.expression_scaler.fit_transform(expression).astype(np.float32)
         methylation_scaled = self.methylation_scaler.fit_transform(methylation).astype(np.float32)
-        self.correlations = pearson_per_gene(expression_scaled, methylation_scaled)
+        self.correlations = correlation_per_gene(
+            expression_scaled,
+            methylation_scaled,
+            self.correlation_method,
+        )
         return self
 
     def transform_modalities(
