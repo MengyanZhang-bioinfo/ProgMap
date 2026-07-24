@@ -1,90 +1,219 @@
 # ProgMap
-# Analysis Code for: [ProgMap defines clinically actionable cancer progression trajectories]
 
-![Language](https://img.shields.io/badge/Language-R-blue.svg)
+![Language](https://img.shields.io/badge/Language-R%20%7C%20Python-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.9--3.11-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 [![Linux CI](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml)
-## Overview
 
-This repository contains the source code and scripts used for the data analysis and visualization presented in the manuscript **"[ProgMap defines clinically actionable cancer progression trajectories]"**. The study integrates single-cell RNA sequencing (scRNA-seq), spatial transcriptomics, and bulk RNA-seq data to elucidate the molecular drivers of tumor progression and immune microenvironment remodeling.
+ProgMap is a command-line Python package for three-class molecular-stage modeling and progression-feature attribution from paired gene-expression and DNA-methylation matrices. The repository also contains the downstream R analysis and visualization scripts used in the associated manuscript.
 
-## 📂 Repository Structure
+## ProgMap Python package
 
-The scripts are organized into four analytical modules mirroring the study's workflow:
+The Python implementation performs fold-specific data preprocessing, MECor feature construction, nested epoch selection, three-class deep-learning classification, enhanced integrated-gradient attribution, and statistical identification of cancer progression signatures.
 
-### 1. Single-Cell & Spatial Transcriptomics Analysis
-Scripts for processing high-resolution omics data to define cell identities and spatial architecture.
+### Quick installation
 
-| Script Name | Description | Key Methods/Packages |
-| :--- | :--- | :--- |
-| **`Scrna-seq annotation.R`** | Quality control, dimensionality reduction, clustering, and cell type annotation of scRNA-seq data. | `Seurat`, `SingleR` |
-| **`Infercnv.R`** | Inference of large-scale copy number variations (CNVs) to distinguish malignant epithelial cells from non-malignant cells. | `infercnv` |
-| **`Pseudotime analysis.R`** | Trajectory inference to reconstruct the developmental lineage of malignant cells and map CPSig dynamics. | `Monocle2` / `Monocle3` |
-| **`SCT.R`** | Processing of spatial transcriptomics data, including normalization, clustering, and spatial mapping of gene signatures (e.g., via AUCell). | `Seurat`, `AUCell` |
+```bash
+git clone https://github.com/MengyanZhang-bioinfo/ProgMap.git
+cd ProgMap/progmap-python
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-linux-cpu.txt
+python -m pip install --no-deps .
+progmap --version
+```
 
-### 2. Bulk Data Processing & Molecular Stratification
-Scripts for bridging single-cell insights to large-scale bulk cohorts.
+The reference environment uses Python 3.11 and TensorFlow/Keras 2.14.0. A Conda environment, CPU and GPU Dockerfiles, a Slurm script, and pinned Linux dependencies are included in [`progmap-python/`](progmap-python/).
 
-| Script Name | Description | Key Methods/Packages |
-| :--- | :--- | :--- |
-| **`Pre-treatment.R`** | Standardization and preprocessing of raw transcriptomic data from bulk cohorts (e.g., TCGA, GEO). | `limma`, `sva` |
-| **`Deconvolution.R`** | Estimation of cellular abundance in bulk tissues using scRNA-seq derived signatures. | `CIBERSORTx`, `MuSiC` |
-| **`Clustering.R`** | Unsupervised hierarchical clustering of samples based on CPSig-related metrics (e.g., MECor values) to define distinct molecular subtypes. | `ConsensusClusterPlus` |
+### Input data
 
-### 3. Functional & Genomic Characterization
-Scripts for exploring biological pathways and genomic instability.
+The input root contains one folder per cancer type. Each cancer folder contains six gene-by-sample CSV matrices:
 
-| Script Name | Description | Key Methods/Packages |
-| :--- | :--- | :--- |
-| **`Functional enrichment analysis.R`** | Functional annotation of CPSig and differentially expressed genes (GO, KEGG, GSEA). | `clusterProfiler` |
-| **`EMT.R`** | Quantification of Epithelial-Mesenchymal Transition (EMT) activity scores across samples. | `GSVA` / `ssGSEA` |
-| **`Mutation analysis.R`** | Analysis of somatic mutation landscapes and calculation of Tumor Mutational Burden (TMB). | `maftools` |
+| Class | Expression | DNA methylation |
+|---|---|---|
+| Normal | `en.csv` | `mn.csv` |
+| Stage I | `e1.csv` or `exp1.csv` | `m1.csv` or `me1.csv` |
+| Stage II/III | `e2.csv` or `exp2.csv` | `m2.csv` or `me2.csv` |
 
-### 4. Immune Landscape & Clinical Translation
-Scripts for evaluating the tumor microenvironment (TME) and clinical relevance.
+```text
+/data/PANCANCER/
+└── BRCA/
+    ├── en.csv
+    ├── e1.csv
+    ├── e2.csv
+    ├── mn.csv
+    ├── m1.csv
+    └── m2.csv
+```
 
-| Script Name | Description | Key Methods/Packages |
-| :--- | :--- | :--- |
-| **`ESTIMATE.R`** | Calculation of ImmuneScore and StromalScore. | `ESTIMATE` |
-| **`T cell exhaustion+Check point.R`** | Evaluation of T-cell exhaustion markers and immune checkpoint expression profiles. | `ggplot2`, `ggpubr` |
-| **`TIDE.R`** | Prediction of immunotherapy response and tumor immune dysfunction/exclusion scores. | `TIDE` algorithm |
-| **`Survival analysis.R`** | Kaplan-Meier survival curves and Cox proportional hazards regression to assess prognostic value. | `survival`, `survminer` |
+The first column contains gene identifiers and the remaining columns contain samples. Expression and methylation matrices are aligned by common gene and sample identifiers. A directory named `GEO` is ignored during automatic cancer discovery.
 
-### 5. Plots
-| Script Name | Description | Key Methods/Packages |
-| :--- | :--- | :--- |
-| **`UpSet_plot.R`** |The intersection and specificity of the CPSig gene in pan-cancer | `UpSetR` package |
+### One-command analysis
 
-### 6. ProgMap Python tool for Linux servers
+Run all complete cancer folders with the default manuscript settings:
 
-The reproducible command-line implementation of fold-specific MECor construction, the fixed Dense(2048)-Dense(128) skip model, three-class cross-validation, integrated-gradient attribution, and optional feature tests is available in [`progmap-python/`](progmap-python/).
+```bash
+progmap --data-root /data/PANCANCER --output /results/progmap
+```
 
-The server release includes pinned Python/TensorFlow dependencies, CPU and GPU container definitions, POSIX shell and Slurm examples, automated tests, and an Ubuntu 22.04 GitHub Actions workflow. Quick start:
+Run selected cancer types with custom settings:
+
+```bash
+progmap \
+  --data-root /data/PANCANCER \
+  --output /results/custom_run \
+  --cancers BRCA,COAD \
+  --folds 3 \
+  --inner-folds 3 \
+  --epochs 1000 \
+  --learning-rate 0.001 \
+  --early-stopping nested \
+  --early-stopping-monitor val_loss \
+  --warmup-epochs 20 \
+  --patience 50 \
+  --seed 42 \
+  --correlation-method spearman \
+  --test wilcoxon \
+  --top-n 100
+```
+
+### Default workflow
+
+- Stratified three-fold outer cross-validation estimates held-out performance.
+- Stratified three-fold inner cross-validation selects the training duration independently within each outer-training fold.
+- Inner models use class-balanced validation loss, a maximum of 1,000 epochs, 20 warm-up epochs, patience of 50, and a minimum improvement of `1e-4`.
+- The median inner-fold best epoch is used to train a new model on the complete outer-training fold.
+- Expression and methylation data are independently imputed and min-max scaled to `[0, 1]` within each training partition.
+- Per-gene Pearson correlation is calculated within each training partition before constructing MECor features. Spearman correlation is available with `--correlation-method spearman`.
+- The model uses Dense(2048)-Dense(128) hidden layers, dropout, an input skip connection, and a three-class softmax output.
+- Adam optimization uses an initial learning rate of `1e-3`, exponential decay, batch size 16, and seed 42.
+- Enhanced integrated gradients quantify held-out feature attribution.
+- A one-sided Welch t-test with Benjamini-Hochberg FDR correction at 0.01 identifies significant genes by default.
+
+Outer test samples are excluded from imputation, scaling, correlation calculation, MECor construction, epoch selection, and model fitting.
+
+### Configurable options
+
+The command-line interface supports:
+
+- maximum epochs, learning rate, batch size, dropout, and random seed;
+- outer and inner cross-validation fold counts;
+- nested early stopping, one internal holdout, or fixed-epoch training;
+- validation-loss or validation-AUC monitoring, patience, warm-up, and minimum improvement;
+- Pearson or Spearman expression-methylation correlation;
+- t-test, Wilcoxon rank-sum, or permutation feature testing;
+- multiple-testing method and adjusted significance threshold;
+- all significant genes, the top `N` ranked genes, or all ranked genes;
+- optional feature-effect bootstrap confidence intervals;
+- CPU/GPU selection, thread count, model saving, attribution saving, and progress display.
+
+Use `progmap --help` for the complete parameter list.
+
+### Main outputs
+
+Each cancer-specific result directory contains:
+
+- `cross_validated_predictions.csv` and `fold_metrics.csv`;
+- `pooled_out_of_fold_metrics.json`;
+- `epoch_selection_all_folds.csv`;
+- `features_by_class_all.csv`;
+- `features_ranked_genes.csv`;
+- `features_selected.csv` and `progression_genes.csv`;
+- raw class-specific attribution arrays;
+- one saved model, preprocessor, correlation table, training history, and sample-role table per outer fold.
+
+`progression_genes.csv` includes the selected gene, associated stage class, target and background median absolute attribution, raw P value, adjusted P value, attribution effect, significance flag, statistical test, and correction method.
+
+### Synthetic BRCA-format example
+
+A small synthetic `BRCA_DEMO` dataset is included for testing the complete workflow. It follows the required six-file layout but contains no patient data.
 
 ```bash
 cd progmap-python
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r requirements-linux-cpu.txt
-python -m pip install --no-deps .
-progmap --help
+progmap \
+  --data-root examples/data/PANCANCER \
+  --cancers BRCA_DEMO \
+  --output demo_results \
+  --folds 2 \
+  --inner-folds 2 \
+  --epochs 2 \
+  --patience 0 \
+  --warmup-epochs 0 \
+  --ig-steps 4 \
+  --ig-baselines 1 \
+  --top-n 5 \
+  --device cpu
 ```
 
-See the [Linux/server documentation](progmap-python/README.md) for input conventions, cross-validation, Docker, Slurm, and command examples.
+See the [complete Python package documentation](progmap-python/README.md) for Conda, Docker, Slurm, server execution, all default values, output structure, and additional examples.
 
-## 🛠️ Prerequisites & Installation
+---
 
-To reproduce the analysis, ensure **R (version >= 4.0.0)** is installed. Key dependencies include:
+## Manuscript analysis code
+
+### Overview
+
+The R scripts reproduce the downstream data analysis and visualization presented in **“ProgMap defines clinically actionable cancer progression trajectories.”** The study integrates single-cell RNA sequencing, spatial transcriptomics, bulk transcriptomics, molecular characterization, and clinical-response analyses to investigate tumor progression and immune-microenvironment remodeling.
+
+### Repository structure
+
+#### 1. Single-cell and spatial transcriptomics
+
+| Script | Description | Main packages or methods |
+|---|---|---|
+| `Scrna-seq_annotation.R` | Quality control, dimensionality reduction, clustering, and cell-type annotation. | Seurat, SingleR |
+| `InferCNV.R` | Large-scale copy-number inference for malignant-cell identification. | infercnv |
+| `Pseudotime analysis.R` | Trajectory inference and analysis of CPSig dynamics. | Monocle |
+| `SCT.R` | Spatial-transcriptomics normalization, clustering, and signature mapping. | Seurat, AUCell |
+
+#### 2. Bulk data processing and molecular stratification
+
+| Script | Description | Main packages or methods |
+|---|---|---|
+| `Deconvolution.R` | Estimation of cellular abundance in bulk tissues. | CIBERSORTx, MuSiC |
+
+#### 3. Functional and genomic characterization
+
+| Script | Description | Main packages or methods |
+|---|---|---|
+| `Functional enrichment analysis.R` | GO, KEGG, and GSEA functional analyses. | clusterProfiler |
+| `EMT.R` | Quantification of epithelial-mesenchymal-transition activity. | GSVA, ssGSEA |
+| `Mutation analysis.R` | Somatic-mutation landscapes and tumor mutational burden. | maftools |
+
+#### 4. Immune landscape and clinical translation
+
+| Script | Description | Main packages or methods |
+|---|---|---|
+| `ESTIMATE.R` | ImmuneScore and StromalScore calculation. | ESTIMATE |
+| `T cell exhaustion+check.R` | T-cell exhaustion and immune-checkpoint analyses. | ggplot2, ggpubr |
+| `TIDE.R` | Immunotherapy-response and immune dysfunction/exclusion analyses. | TIDE |
+| `Survival analysis.R` | Kaplan-Meier and Cox regression analyses. | survival, survminer |
+
+#### 5. Visualization
+
+| Script | Description | Main packages or methods |
+|---|---|---|
+| `UpSet_plot.R` | Pan-cancer CPSig intersection and specificity visualization. | UpSetR |
+
+### R prerequisites
+
+R version 4.0.0 or later is recommended. Representative dependencies include:
 
 ```r
-# Core Bioinformatics Packages
-install.packages(c("Seurat", "Monocle", "survival", "survminer", "estimate", "maftools"))
+install.packages(c(
+  "Seurat", "Monocle", "survival", "survminer", "estimate",
+  "maftools", "tidyverse", "ggplot2", "pheatmap", "ggpubr"
+))
 
-# Tidyverse & Visualization
-install.packages(c("tidyverse", "ggplot2", "pheatmap", "ggpubr"))
-
-# Bioconductor Packages
 if (!requireNamespace("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install(c("limma", "ComplexHeatmap", "clusterProfiler", "infercnv", "GSVA"))
+  install.packages("BiocManager")
+
+BiocManager::install(c(
+  "limma", "ComplexHeatmap", "clusterProfiler", "infercnv", "GSVA"
+))
+```
+
+## License
+
+The ProgMap Python package is distributed under the MIT License. See [`progmap-python/LICENSE`](progmap-python/LICENSE).
