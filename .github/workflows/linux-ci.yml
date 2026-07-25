@@ -38,9 +38,9 @@ jobs:
       - name: Command-line and input smoke test
         run: |
           progmap --help
-          python examples/create_synthetic_data.py --output /tmp/progmap/PANCANCER
-          progmap --data-root /tmp/progmap/PANCANCER --output /tmp/progmap/input_check --dry-run --device cpu
-          progmap --data-root /tmp/progmap/PANCANCER --output /tmp/progmap/results \
+          python examples/create_synthetic_data.py --output /tmp/progmap/inputs
+          progmap --data-root /tmp/progmap/inputs --output /tmp/progmap/input_check --dry-run --device cpu
+          progmap --data-root /tmp/progmap/inputs --output /tmp/progmap/results \
             --folds 2 --inner-folds 2 --epochs 1 --patience 0 \
             --ig-steps 3 --ig-baselines 1 --max-attribution-samples-per-class 2 \
             --top-n 3 --no-save-models --no-save-attributions --no-progress --quiet --device cpu

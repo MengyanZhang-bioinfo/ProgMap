@@ -52,13 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--data-root", required=True, help="PANCANCER root containing one folder per cancer")
+    parser.add_argument("--version", action="version", version=f"%(prog)s v{__version__}")
+    parser.add_argument(
+        "--data-root",
+        required=True,
+        help="Input root containing one directory per dataset",
+    )
     parser.add_argument("--output", default="progmap_results", help="Result directory")
     parser.add_argument(
         "--cancers",
         default="all",
-        help="Comma-separated cancer folders, or 'all' (GEO is always excluded)",
+        help="Comma-separated dataset directory names, or 'all'",
     )
     parser.add_argument("--folds", type=int, default=3, help="Outer stratified CV folds; auto-reduced to the smallest class")
     parser.add_argument("--inner-folds", type=int, default=3, help="Inner stratified CV folds for nested epoch selection")
@@ -66,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--early-stopping",
         choices=EARLY_STOPPING_STRATEGIES,
         default="nested",
-        help="Nested CV (article default), one holdout split, or fixed epochs",
+        help="Nested CV, one holdout split, or fixed epochs",
     )
     parser.add_argument(
         "--early-stopping-monitor",
@@ -154,7 +158,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--threads",
         type=int,
         default=None,
-        help="CPU threads for TensorFlow/OpenMP; omit to use the server runtime default",
+        help="CPU threads for TensorFlow/OpenMP; omit to use the runtime default",
     )
     progress_group = parser.add_mutually_exclusive_group()
     progress_group.add_argument("--progress", dest="progress", action="store_true")
@@ -199,14 +203,14 @@ def main(argv: list[str] | None = None) -> None:
 
     available = discover_cancers(args.data_root)
     if not available:
-        parser.error("No cancer folders with the six required matrices were found")
+        parser.error("No dataset directories with the six required matrices were found")
     if args.cancers.lower() == "all":
         cancers = tuple(available)
     else:
         requested = tuple(part.strip() for part in args.cancers.split(",") if part.strip())
         missing = sorted(set(requested) - set(available))
         if missing:
-            parser.error(f"Cancer folders not found or incomplete: {', '.join(missing)}")
+            parser.error(f"Dataset directories not found or incomplete: {', '.join(missing)}")
         cancers = requested
 
     config = RunConfig(

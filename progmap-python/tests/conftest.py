@@ -13,7 +13,7 @@ def write_matrix(path: Path, genes: list[str], samples: list[str], values: np.nd
 
 @pytest.fixture
 def small_data_root(tmp_path: Path) -> Path:
-    root = tmp_path / "PANCANCER"
+    root = tmp_path / "datasets"
     cancer = root / "TEST"
     cancer.mkdir(parents=True)
     genes = [f"GENE_{index}" for index in range(8)]
@@ -31,8 +31,7 @@ def small_data_root(tmp_path: Path) -> Path:
         write_matrix(cancer / expression_name, genes, samples, expression)
         write_matrix(cancer / methylation_name, genes, samples, methylation)
 
-    geo = root / "GEO"
-    geo.mkdir()
-    for name in ("en.csv", "e1.csv", "e2.csv", "mn.csv", "m1.csv", "m2.csv"):
-        (geo / name).write_text("gene,S\nG,1\n", encoding="utf-8")
+    incomplete = root / "INCOMPLETE"
+    incomplete.mkdir()
+    (incomplete / "en.csv").write_text("gene,S\nG,1\n", encoding="utf-8")
     return root

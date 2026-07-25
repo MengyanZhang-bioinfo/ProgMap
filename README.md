@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 [![Linux CI](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/MengyanZhang-bioinfo/ProgMap/actions/workflows/linux-ci.yml)
 
-ProgMap is a command-line Python package for three-class molecular-stage modeling and progression-feature attribution from paired gene-expression and DNA-methylation matrices. The repository also contains the downstream R analysis and visualization scripts used in the associated manuscript.
+ProgMap is a command-line Python package for three-class molecular-stage modeling and progression-feature attribution from paired gene-expression and DNA-methylation matrices. The repository also includes optional R scripts for downstream analysis and visualization.
 
 ## ProgMap Python package
 
@@ -28,7 +28,7 @@ The reference environment uses Python 3.11 and TensorFlow/Keras 2.14.0. A Conda 
 
 ### Input data
 
-The input root contains one folder per cancer type. Each cancer folder contains six gene-by-sample CSV matrices:
+The input root contains one directory per dataset. Each dataset directory contains six gene-by-sample CSV matrices:
 
 | Class | Expression | DNA methylation |
 |---|---|---|
@@ -37,8 +37,8 @@ The input root contains one folder per cancer type. Each cancer folder contains 
 | Stage II/III | `e2.csv` or `exp2.csv` | `m2.csv` or `me2.csv` |
 
 ```text
-/data/PANCANCER/
-└── BRCA/
+/data/progmap_inputs/
+└── example_dataset/
     ├── en.csv
     ├── e1.csv
     ├── e2.csv
@@ -47,23 +47,23 @@ The input root contains one folder per cancer type. Each cancer folder contains 
     └── m2.csv
 ```
 
-The first column contains gene identifiers and the remaining columns contain samples. Expression and methylation matrices are aligned by common gene and sample identifiers. A directory named `GEO` is ignored during automatic cancer discovery.
+The first column contains gene identifiers and the remaining columns contain samples. Expression and methylation matrices are aligned by common gene and sample identifiers. Automatic discovery includes every subdirectory containing all six required matrices and ignores incomplete subdirectories.
 
 ### One-command analysis
 
-Run all complete cancer folders with the default manuscript settings:
+Run all complete dataset directories with the default settings:
 
 ```bash
-progmap --data-root /data/PANCANCER --output /results/progmap
+progmap --data-root /data/progmap_inputs --output /results/progmap
 ```
 
-Run selected cancer types with custom settings:
+Run selected datasets with custom settings:
 
 ```bash
 progmap \
-  --data-root /data/PANCANCER \
+  --data-root /data/progmap_inputs \
   --output /results/custom_run \
-  --cancers BRCA,COAD \
+  --cancers dataset_A,dataset_B \
   --folds 3 \
   --inner-folds 3 \
   --epochs 1000 \
@@ -112,7 +112,7 @@ Use `progmap --help` for the complete parameter list.
 
 ### Main outputs
 
-Each cancer-specific result directory contains:
+Each dataset-specific result directory contains:
 
 - `cross_validated_predictions.csv` and `fold_metrics.csv`;
 - `pooled_out_of_fold_metrics.json`;
@@ -125,15 +125,15 @@ Each cancer-specific result directory contains:
 
 `progression_genes.csv` includes the selected gene, associated stage class, target and background median absolute attribution, raw P value, adjusted P value, attribution effect, significance flag, statistical test, and correction method.
 
-### Synthetic BRCA-format example
+### Synthetic example
 
-A small synthetic `BRCA_DEMO` dataset is included for testing the complete workflow. It follows the required six-file layout but contains no patient data.
+A small synthetic `DEMO_DATASET` is included for testing the complete workflow. It follows the required six-file layout but contains no patient data.
 
 ```bash
 cd progmap-python
 progmap \
-  --data-root examples/data/PANCANCER \
-  --cancers BRCA_DEMO \
+  --data-root examples/data/datasets \
+  --cancers DEMO_DATASET \
   --output demo_results \
   --folds 2 \
   --inner-folds 2 \
@@ -150,11 +150,11 @@ See the [complete Python package documentation](progmap-python/README.md) for Co
 
 ---
 
-## Manuscript analysis code
+## Additional analysis scripts
 
 ### Overview
 
-The R scripts reproduce the downstream data analysis and visualization presented in **“ProgMap defines clinically actionable cancer progression trajectories.”** The study integrates single-cell RNA sequencing, spatial transcriptomics, bulk transcriptomics, molecular characterization, and clinical-response analyses to investigate tumor progression and immune-microenvironment remodeling.
+The R scripts provide optional workflows for single-cell RNA sequencing, spatial transcriptomics, bulk transcriptomics, molecular characterization, clinical analyses, and visualization. They can be adapted to compatible user datasets.
 
 ### Repository structure
 

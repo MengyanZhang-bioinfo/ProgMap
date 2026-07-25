@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-message: "If you use ProgMap, please cite the associated manuscript and this software release."
+message: "If you use ProgMap, please cite this software release."
 title: "ProgMap Python Tool"
 type: software
-version: 0.3.0
+version: 0.1.0
 date-released: 2026-07-25
 authors:
   - name: "ProgMap authors"

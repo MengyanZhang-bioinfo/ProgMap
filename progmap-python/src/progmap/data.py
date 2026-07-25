@@ -72,7 +72,7 @@ def discover_cancers(data_root: str | Path) -> list[str]:
         raise NotADirectoryError(root)
     cancers = []
     for folder in sorted(root.iterdir()):
-        if not folder.is_dir() or folder.name.upper() == "GEO":
+        if not folder.is_dir():
             continue
         try:
             for label in FILE_CANDIDATES:
@@ -135,4 +135,3 @@ def load_cancer(data_root: str | Path, cancer: str) -> MultiOmicsData:
         genes=np.asarray(genes, dtype=object),
         cancer=cancer,
     )
-

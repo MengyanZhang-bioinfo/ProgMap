@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 /absolute/path/to/PANCANCER /absolute/path/to/results" >&2
+  echo "Usage: $0 /absolute/path/to/progmap_inputs /absolute/path/to/results" >&2
   exit 2
 fi
 

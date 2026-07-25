@@ -1,9 +1,24 @@
+import pytest
+
 from progmap.cli import build_parser
 
 
-def test_article_defaults_and_new_options():
+def test_public_version_and_generic_help(capsys):
     parser = build_parser()
-    defaults = parser.parse_args(["--data-root", "/data/PANCANCER"])
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["--version"])
+    assert exc_info.value.code == 0
+    assert capsys.readouterr().out.strip() == "progmap v0.1.0"
+
+    help_text = parser.format_help()
+    assert "Input root containing one directory per dataset" in help_text
+    assert "Comma-separated dataset directory names" in help_text
+    assert "Nested CV, one holdout split, or fixed epochs" in help_text
+
+
+def test_defaults_and_configurable_options():
+    parser = build_parser()
+    defaults = parser.parse_args(["--data-root", "/data/progmap_inputs"])
     assert defaults.output == "progmap_results"
     assert defaults.folds == 3
     assert defaults.inner_folds == 3
@@ -20,7 +35,7 @@ def test_article_defaults_and_new_options():
     custom = parser.parse_args(
         [
             "--data-root",
-            "/data/PANCANCER",
+            "/data/progmap_inputs",
             "--output",
             "/results/custom",
             "--folds",

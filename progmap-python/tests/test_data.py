@@ -1,7 +1,7 @@
 from progmap.data import discover_cancers, load_cancer
 
 
-def test_aliases_pairing_and_geo_exclusion(small_data_root):
+def test_aliases_pairing_and_incomplete_directory_exclusion(small_data_root):
     assert discover_cancers(small_data_root) == ["TEST"]
     data = load_cancer(small_data_root, "TEST")
     assert data.expression.shape == (27, 8)

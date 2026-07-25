@@ -1,4 +1,4 @@
-# ProgMap 0.3.0 test report
+# ProgMap v0.1.0 test report
 
 Date: 2026-07-25
 
@@ -24,13 +24,13 @@ The dependency versions are pinned in the Linux requirements and Conda environme
 python -m pytest
 ```
 
-Result: **9 passed**.
+Result: **10 passed**.
 
-The tests cover input aliases and modality alignment, exclusion of the `GEO` directory, training-partition-only imputation/scaling/correlation, Pearson and Spearman correlations, command-line defaults and overrides, the Dense(2048)-Dense(128) skip architecture, enhanced integrated gradients, t-test/Wilcoxon/permutation feature ranking, and an end-to-end nested-cross-validation pipeline.
+The tests cover input aliases and modality alignment, exclusion of incomplete dataset directories, training-partition-only imputation/scaling/correlation, Pearson and Spearman correlations, command-line defaults and overrides, the Dense(2048)-Dense(128) skip architecture, enhanced integrated gradients, t-test/Wilcoxon/permutation feature ranking, and an end-to-end nested-cross-validation pipeline.
 
 ## Installed-command tests
 
-A synthetic BRCA-format dataset containing 27 paired samples and 12 genes was analyzed with the installed `progmap` command.
+A generic synthetic dataset containing 27 paired samples and 12 genes was analyzed with the installed `progmap` command.
 
 The nested test used two outer folds, two inner folds, two maximum epochs, fold-specific Pearson MECor features, t-tests, saved raw attributions, and saved outer-fold models. The result contained:
 
@@ -47,13 +47,9 @@ A second installed-command test used a custom seed, learning rate, fixed-epoch t
 
 - `python -m compileall` completed without syntax errors.
 - `git diff --check` reported no whitespace errors.
-- `python -m build` produced `progmap-0.3.0-py3-none-any.whl` and `progmap-0.3.0.tar.gz`.
-- The source distribution includes the synthetic BRCA-format six-file example.
+- `python -m build` produced `progmap-0.1.0-py3-none-any.whl` and `progmap-0.1.0.tar.gz`.
+- The source distribution includes the generic synthetic six-file example.
 - The Ubuntu 22.04 GitHub Actions workflow installs the pinned environment, runs all tests, executes the installed command, and builds both distributions.
-
-## BRCA 841-gene reference
-
-`Supplementary_Table.xlsx`, Table S2, contains 841 BRCA CPSig rows and 841 unique BRCA gene identifiers. The six real BRCA expression/methylation matrices were not present in the available `PANCANCER` directory, so the 841-gene result has not been represented as a newly reproduced model output in this report. The package does not treat a different count as a seed-only effect: data content, fold assignment, epoch-selection design, preprocessing, correlation method, attribution settings, statistical test, and multiple-testing correction can all change the selected set.
 
 ## Test boundary
 

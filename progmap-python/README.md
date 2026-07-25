@@ -29,7 +29,7 @@ The reference environment uses Python 3.11, TensorFlow/Keras 2.14.0, NumPy 1.26.
 
 ## Input data
 
-`--data-root` contains one directory per cancer type. Each cancer directory contains six gene-by-sample CSV matrices. The first column contains gene identifiers, and the remaining columns are samples.
+`--data-root` contains one directory per dataset. Each dataset directory contains six gene-by-sample CSV matrices. The first column contains gene identifiers, and the remaining columns are samples.
 
 | Class | Expression | DNA methylation |
 |---|---|---|
@@ -38,26 +38,26 @@ The reference environment uses Python 3.11, TensorFlow/Keras 2.14.0, NumPy 1.26.
 | Stage II/III | `e2.csv` or `exp2.csv` | `m2.csv` or `me2.csv` |
 
 ```text
-/data/PANCANCER/
-├── BRCA/
+/data/progmap_inputs/
+├── dataset_A/
 │   ├── en.csv
 │   ├── e1.csv
 │   ├── e2.csv
 │   ├── mn.csv
 │   ├── m1.csv
 │   └── m2.csv
-└── another_cancer/
+└── dataset_B/
     └── ...
 ```
 
-Filenames are case-sensitive. Expression and methylation matrices are aligned by common gene and sample identifiers before analysis.
+Filenames are case-sensitive. Expression and methylation matrices are aligned by common gene and sample identifiers before analysis. Automatic discovery includes each subdirectory with all six required matrices and ignores incomplete subdirectories.
 
 ## One-command analysis
 
-Run every complete cancer directory with the manuscript defaults:
+Run every complete dataset directory with the default settings:
 
 ```bash
-progmap --data-root /data/PANCANCER --output /results/progmap
+progmap --data-root /data/progmap_inputs --output /results/progmap
 ```
 
 The command reads the raw expression and methylation CSV files, performs fold-specific preprocessing, trains the models, calculates held-out attributions, tests the features, and writes all results under `--output`. Progress bars are enabled by default; use `--no-progress` or `--quiet` to disable them.
@@ -66,7 +66,7 @@ Validate input files without training:
 
 ```bash
 progmap \
-  --data-root /data/PANCANCER \
+  --data-root /data/progmap_inputs \
   --output /results/input_check \
   --dry-run \
   --device cpu
@@ -105,9 +105,9 @@ All requested training and feature-selection settings are available from the com
 
 ```bash
 progmap \
-  --data-root /data/PANCANCER \
+  --data-root /data/progmap_inputs \
   --output /results/custom_run \
-  --cancers BRCA,COAD \
+  --cancers dataset_A,dataset_B \
   --folds 5 \
   --inner-folds 3 \
   --epochs 600 \
@@ -141,16 +141,16 @@ Important choices include:
 
 Run `progmap --help` for every available option.
 
-## BRCA-format example
+## Synthetic example
 
-The repository includes a small synthetic `BRCA_DEMO` dataset with the same six-file layout as a real BRCA analysis. It contains no patient data.
+The repository includes a small synthetic `DEMO_DATASET` with the required six-file layout. It contains no patient data.
 
 Run a short end-to-end example:
 
 ```bash
 progmap \
-  --data-root examples/data/PANCANCER \
-  --cancers BRCA_DEMO \
+  --data-root examples/data/datasets \
+  --cancers DEMO_DATASET \
   --output demo_results \
   --folds 2 \
   --inner-folds 2 \
@@ -167,8 +167,8 @@ To create another synthetic dataset:
 
 ```bash
 python examples/create_synthetic_data.py \
-  --output /tmp/PANCANCER \
-  --cancer BRCA_DEMO \
+  --output /tmp/progmap_inputs \
+  --dataset DEMO_DATASET \
   --genes 12 \
   --samples-per-class 9 \
   --seed 7
@@ -180,7 +180,7 @@ python examples/create_synthetic_data.py \
 OUTPUT/
 ├── run_config.json
 ├── run_summary.json
-└── BRCA/
+└── dataset_A/
     ├── data_summary.json
     ├── cross_validated_predictions.csv
     ├── fold_metrics.csv
@@ -212,7 +212,7 @@ OUTPUT/
 
 ```bash
 nohup progmap \
-  --data-root /data/PANCANCER \
+  --data-root /data/progmap_inputs \
   --output /results/progmap \
   --device auto \
   --threads 8 \
@@ -222,13 +222,13 @@ nohup progmap \
 Shell wrapper:
 
 ```bash
-bash examples/run_all.sh /data/PANCANCER /results/progmap
+bash examples/run_all.sh /data/progmap_inputs /results/progmap
 ```
 
 Slurm:
 
 ```bash
-sbatch server/slurm_run.sh /data/PANCANCER /results/progmap
+sbatch server/slurm_run.sh /data/progmap_inputs /results/progmap
 ```
 
 `--device gpu` stops if TensorFlow cannot detect a GPU. `--device auto` uses an available GPU and otherwise runs on CPU.
@@ -236,12 +236,12 @@ sbatch server/slurm_run.sh /data/PANCANCER /results/progmap
 ## Docker
 
 ```bash
-docker build -t progmap:0.3.0 .
+docker build -t progmap:v0.1.0 .
 docker run --rm \
-  -v /absolute/path/PANCANCER:/data/PANCANCER:ro \
+  -v /absolute/path/progmap_inputs:/data/progmap_inputs:ro \
   -v /absolute/path/results:/results \
-  progmap:0.3.0 \
-  --data-root /data/PANCANCER \
+  progmap:v0.1.0 \
+  --data-root /data/progmap_inputs \
   --output /results/run1 \
   --device cpu
 ```
