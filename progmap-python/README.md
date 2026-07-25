@@ -50,7 +50,7 @@ The reference environment uses Python 3.11, TensorFlow/Keras 2.14.0, NumPy 1.26.
     └── ...
 ```
 
-Filenames are case-sensitive. A directory named `GEO` is ignored. Expression and methylation matrices are aligned by common gene and sample identifiers before analysis.
+Filenames are case-sensitive. Expression and methylation matrices are aligned by common gene and sample identifiers before analysis.
 
 ## One-command analysis
 
